@@ -4,6 +4,8 @@
 
 package frc.robot.subsystems;
 
+import com.kauailabs.navx.frc.AHRS;
+
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -13,8 +15,9 @@ import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.util.WPIUtilJNI;
-import edu.wpi.first.wpilibj.ADIS16470_IMU;
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.SerialPort.Port;
+// import edu.wpi.first.wpilibj.ADIS16470_IMU;
+// import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import frc.robot.Constants.DriveConstants;
 import frc.utils.SwerveUtils;
@@ -43,7 +46,7 @@ public class DriveSubsystem extends SubsystemBase {
       DriveConstants.kBackRightChassisAngularOffset);
 
   // The gyro sensor
-  private final ADXRS450_Gyro m_gyro = new ADXRS450_Gyro();
+  private final AHRS m_gyro = new AHRS(Port.kUSB);
 
   // Slew rate filter variables for controlling lateral acceleration
   private double m_currentRotation = 0.0;
@@ -67,6 +70,7 @@ public class DriveSubsystem extends SubsystemBase {
 
   /** Creates a new DriveSubsystem. */
   public DriveSubsystem() {
+    m_gyro.reset();
   }
 
   @Override
@@ -119,13 +123,24 @@ public class DriveSubsystem extends SubsystemBase {
    * @param rateLimit     Whether to enable rate limiting for smoother control.
    */
   public void drive(double xSpeed, double ySpeed, double rot, boolean fieldRelative, boolean rateLimit) {
-    xSpeed /= 3;
-    ySpeed /=3;
+     xSpeed /= 3;
+     ySpeed /=3;
     rot /= 3;
     SmartDashboard.putNumber("xSpeed", xSpeed);
     SmartDashboard.putNumber("ySpeed", ySpeed);
     SmartDashboard.putNumber("rot", rot);
-    SmartDashboard.putNumber("angle", m_gyro.getAngle());
+    SmartDashboard.putNumber("angle", m_gyro.getYaw());
+    SmartDashboard.putNumber("Heading", m_gyro.getYaw());
+    SmartDashboard.putNumber("RL Speed", m_rearLeft.getDrivingRPM());
+    SmartDashboard.putNumber("RR Speed", m_rearRight.getDrivingRPM());
+
+    SmartDashboard.putNumber("FL Speed", m_frontLeft.getDrivingRPM());
+    SmartDashboard.putNumber("FR Speed", m_frontRight.getDrivingRPM());
+
+SmartDashboard.putNumber("rear difference", m_rearLeft.getDrivingRPM() - m_rearRight.getDrivingRPM());
+
+SmartDashboard.putNumber("front difference", m_frontLeft.getDrivingRPM() - m_frontRight.getDrivingRPM());
+
     double xSpeedCommanded;
     double ySpeedCommanded;
 
@@ -184,7 +199,7 @@ public class DriveSubsystem extends SubsystemBase {
 
     var swerveModuleStates = DriveConstants.kDriveKinematics.toSwerveModuleStates(
         fieldRelative
-            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(m_gyro.getAngle()))
+            ? ChassisSpeeds.fromFieldRelativeSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered, Rotation2d.fromDegrees(m_gyro.getYaw()))
             : new ChassisSpeeds(xSpeedDelivered, ySpeedDelivered, rotDelivered));
     SwerveDriveKinematics.desaturateWheelSpeeds(
         swerveModuleStates, DriveConstants.kMaxSpeedMetersPerSecond);
@@ -192,8 +207,27 @@ public class DriveSubsystem extends SubsystemBase {
     m_frontRight.setDesiredState(swerveModuleStates[1]);
     m_rearLeft.setDesiredState(swerveModuleStates[2]);
     m_rearRight.setDesiredState(swerveModuleStates[3]);
+
   }
 
+  // public double getGyroAngle(){
+  //   double gyroangle = m_gyro.getAngle();
+  //   while (gyroangle > 360)      
+  //     {
+  //       gyroangle -= 360;
+  //     }
+
+  //     while (gyroangle < -360)
+  //     {
+  //       gyroangle += 360;
+  //     }
+
+  //     if(gyroangle > 180)
+  //       gyroangle -= 360;
+  //     if(gyroangle < -180)
+  //     gyroangle += 360;
+  //     return gyroangle;
+  // }
   /**
    * Sets the wheels into an X formation to prevent movement.
    */
@@ -237,7 +271,9 @@ public class DriveSubsystem extends SubsystemBase {
    * @return the robot's heading in degrees, from -180 to 180
    */
   public double getHeading() {
-    return Rotation2d.fromDegrees(m_gyro.getAngle()).getDegrees();
+    double gyro = m_gyro.getAngle();
+      
+    return Rotation2d.fromDegrees(gyro).getDegrees();
   }
 
   /**

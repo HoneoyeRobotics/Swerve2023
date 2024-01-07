@@ -18,6 +18,10 @@ import com.revrobotics.RelativeEncoder;
 import frc.robot.Constants.ModuleConstants;
 
 public class MAXSwerveModule {
+
+  public double getDrivingRPM(){
+    return m_drivingEncoder.getVelocity();
+  }
   private final CANSparkMax m_drivingSparkMax;
   private final CANSparkMax m_turningSparkMax;
 
